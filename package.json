@@ -1,0 +1,27 @@
+﻿{
+    "name":  "respostas-google",
+    "version":  "1.0.0",
+    "description":  "",
+    "main":  "index.js",
+    "scripts":  {
+                    "test":  "echo \"Error: no test specified\" \u0026\u0026 exit 1",
+                    "start":  "node server.js",
+                    "dev":  "nodemon server.js",
+                    "panel":  "node server-panel.js",
+                    "build":  "node --check api/index.js"
+                },
+    "keywords":  [
+
+                 ],
+    "author":  "",
+    "license":  "ISC",
+    "type":  "commonjs",
+    "dependencies":  {
+                         "dotenv":  "^18.0.9",
+                         "express":  "^5.3.0",
+                         "@supabase/supabase-js": "^2.45.0"
+                     },
+    "devDependencies":  {
+                            "nodemon":  "^3.1.14"
+                        }
+}
