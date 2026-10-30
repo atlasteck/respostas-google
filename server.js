@@ -1,24 +1,21 @@
-﻿const express = require("express");
-const fs = require("fs");
-const path = require("path");
-const { google } = require("googleapis");
-const { createBusiness, getBusiness, listBusinesses, createSuggestion, listSuggestions, updateSuggestionStatus } = require("./db");
-const { analyzeBusiness } = require("./agent");
-require("dotenv").config({ path: path.join(__dirname, ".env") });
-const PORT=Number(process.env.PORT||3000),CREDENTIALS_PATH=path.join(__dirname,"client_secret.json"),TOKEN_PATH=path.join(__dirname,".token.json"),SCOPES=["https://www.googleapis.com/auth/business.manage"];
-const credentials=JSON.parse(fs.readFileSync(CREDENTIALS_PATH,"utf8")),config=credentials.web||credentials.installed;
-const redirectUri=(config.redirect_uris||[]).find((u)=>u.includes("localhost:3000"))||config.redirect_uris?.[0];
-const oauth2Client=new google.auth.OAuth2(config.client_id,config.client_secret,redirectUri),app=express();app.use(express.json());
-const loadToken=()=>fs.existsSync(TOKEN_PATH)?JSON.parse(fs.readFileSync(TOKEN_PATH,"utf8")):null;
-const saveToken=(t)=>fs.writeFileSync(TOKEN_PATH,JSON.stringify(t,null,2),{encoding:"utf8"});
-const authUrl=()=>oauth2Client.generateAuthUrl({access_type:"offline",prompt:"consent",scope:SCOPES});
-app.get("/",(_req,res)=>res.type("html").send("<h1>Respostas Google</h1><p>Agente local de análise e sugestões.</p><a href=/api/empresas>Ver empresas</a><br><a href=/auth/google>Conectar com Google</a>"));
-app.get("/api/empresas",(_req,res)=>res.json(listBusinesses()));
-app.post("/api/empresas",(req,res)=>{try{const business=createBusiness(req.body||{}),analysis=analyzeBusiness(business);for(const item of analysis.recommendations)createSuggestion({business_id:business.id,type:"recommendation",title:item.item,content:item.action,rationale:"Prioridade: "+item.priority});createSuggestion({business_id:business.id,type:"description",title:"Descrição sugerida",content:analysis.description,rationale:"Gerada com dados informados."});createSuggestion({business_id:business.id,type:"keywords",title:"Palavras-chave sugeridas",content:analysis.keywords.join(", "),rationale:"Derivadas de serviços, categoria e região."});res.status(201).json({business,analysis,suggestions:listSuggestions(business.id)});}catch(e){res.status(400).json({error:e.message});}});
-app.get("/api/empresas/:id/analise",(req,res)=>{const b=getBusiness(req.params.id);if(!b)return res.status(404).json({error:"Empresa não encontrada"});res.json({business:b,analysis:analyzeBusiness(b),suggestions:listSuggestions(b.id)});});
-app.get("/api/empresas/:id/sugestoes",(req,res)=>res.json(listSuggestions(req.params.id)));
-app.patch("/api/sugestoes/:id",(req,res)=>{const status=["pending","approved","rejected"].includes(req.body?.status)?req.body.status:null;if(!status)return res.status(400).json({error:"Status inválido"});res.json(updateSuggestionStatus(req.params.id,status));});
-app.get("/auth/google",(_req,res)=>res.redirect(authUrl()));
-app.get("/oauth2/callback",async(req,res)=>{try{if(req.query.error)return res.status(400).send("Autorização cancelada: "+req.query.error);const{tokens}=await oauth2Client.getToken(String(req.query.code));saveToken(tokens);res.send("Autorização concluída. Volte ao sistema.");}catch(e){res.status(500).send("Falha na autorização: "+e.message);}});
-app.get("/api/contas",async(_req,res)=>{try{const token=loadToken();if(!token)return res.status(401).json({error:"Ainda não autorizado",authorizeUrl:"/auth/google"});oauth2Client.setCredentials(token);const api=google.mybusinessaccountmanagement({version:"v1",auth:oauth2Client});res.json((await api.accounts.list()).data);}catch(e){res.status(500).json({error:e.message,details:e.response?.data||null});}});
-app.listen(PORT,()=>console.log("Respostas Google em http://localhost:"+PORT));
+const express = require('express');
+const path = require('path');
+const app = require('./api/index');
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Rota não encontrada' });
+  }
+  return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+if (require.main === module) {
+  const port = Number(process.env.PORT || 3000);
+  app.listen(port, () => {
+    console.log(`Respostas Google em http://localhost:${port}`);
+  });
+}
+
+module.exports = app;
