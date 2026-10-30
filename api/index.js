@@ -44,7 +44,7 @@ app.post('/api/empresas', requireAuth, async (req, res) => {
         rationale: 'Prioridade: ' + x.priority
       });
     }
-    const suggestions = await listSuggestions(business.id);
+    const suggestions = await listSuggestions(business.id, req.user.id);
     res.status(201).json({ business, analysis, suggestions });
   } catch (e) {
     res.status(400).json({ error: e.message });
@@ -53,10 +53,10 @@ app.post('/api/empresas', requireAuth, async (req, res) => {
 
 app.get('/api/empresas/:id/analise', requireAuth, async (req, res) => {
   try {
-    const b = await getBusiness(req.params.id);
+    const b = await getBusiness(req.params.id, req.user.id);
     if (!b) return res.status(404).json({ error: 'Empresa não encontrada' });
     const analysis = analyzeBusiness(b);
-    const suggestions = await listSuggestions(b.id);
+    const suggestions = await listSuggestions(b.id, req.user.id);
     res.json({ business: b, analysis, suggestions });
   } catch (e) {
     res.status(404).json({ error: e.message });
@@ -65,7 +65,8 @@ app.get('/api/empresas/:id/analise', requireAuth, async (req, res) => {
 
 app.get('/api/empresas/:id/sugestoes', requireAuth, async (req, res) => {
   try {
-    const suggestions = await listSuggestions(req.params.id);
+    const suggestions = await listSuggestions(req.params.id, req.user.id);
+    if (!suggestions) return res.status(404).json({ error: 'Empresa não encontrada' });
     res.json(suggestions);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -78,7 +79,8 @@ app.patch('/api/sugestoes/:id', requireAuth, async (req, res) => {
     if (!['pending','approved','rejected'].includes(status)) {
       return res.status(400).json({ error: 'Status inválido' });
     }
-    const suggestion = await updateSuggestionStatus(req.params.id, status);
+    const suggestion = await updateSuggestionStatus(req.params.id, status, req.user.id);
+    if (!suggestion) return res.status(404).json({ error: 'Sugestão não encontrada' });
     res.json(suggestion);
   } catch (e) {
     res.status(500).json({ error: e.message });
