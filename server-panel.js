@@ -1,0 +1,11 @@
+﻿const express=require("express");
+const path=require("path");
+const {createBusiness,getBusiness,listBusinesses,createSuggestion,listSuggestions,updateSuggestionStatus}=require("./db");
+const {analyzeBusiness}=require("./agent");
+const app=express();const PORT=Number(process.env.PORT||3000);app.use(express.json());app.use(express.static(path.join(__dirname,"public")));
+app.get("/api/empresas",(_req,res)=>res.json(listBusinesses()));
+app.post("/api/empresas",(req,res)=>{try{const b=createBusiness(req.body||{}),a=analyzeBusiness(b);createSuggestion({business_id:b.id,type:"description",title:"Descrição sugerida",content:a.description,rationale:"Gerada com os dados informados."});createSuggestion({business_id:b.id,type:"keywords",title:"Palavras-chave sugeridas",content:a.keywords.join(", "),rationale:"Derivadas dos serviços, categoria e região."});for(const x of a.recommendations)createSuggestion({business_id:b.id,type:"recommendation",title:x.item,content:x.action,rationale:"Prioridade: "+x.priority});res.status(201).json({business:b,analysis:a,suggestions:listSuggestions(b.id)});}catch(e){res.status(400).json({error:e.message});}});
+app.get("/api/empresas/:id/analise",(req,res)=>{const b=getBusiness(req.params.id);if(!b)return res.status(404).json({error:"Empresa não encontrada"});res.json({business:b,analysis:analyzeBusiness(b),suggestions:listSuggestions(b.id)});});
+app.get("/api/empresas/:id/sugestoes",(req,res)=>res.json(listSuggestions(req.params.id)));
+app.patch("/api/sugestoes/:id",(req,res)=>{const status=["pending","approved","rejected"].includes(req.body?.status)?req.body.status:null;if(!status)return res.status(400).json({error:"Status inválido"});res.json(updateSuggestionStatus(req.params.id,status));});
+app.listen(PORT,()=>console.log("Painel Respostas Google em http://localhost:"+PORT));
