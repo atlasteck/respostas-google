@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -213,7 +213,7 @@ footer{color:var(--muted);font-size:12px;text-align:center;margin:40px 0}
 const SUPABASE_URL = 'https://ndqjllvoqcpmdusojequ.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable__u_sBYVrUSMv1amigW1DXQ_hr13BOuZ';
 if(SUPABASE_URL==='https://ndqjllvoqcpmdusojequ.supabase.co'){/* placeholder for build */}
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const authView = document.getElementById('authView');
 const appView = document.getElementById('appView');
@@ -221,7 +221,7 @@ const userInfo = document.getElementById('userInfo');
 const authMsg = document.getElementById('authMsg');
 
 async function refreshSession(){
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   if(session){
     authView.classList.add('hidden');
     appView.classList.remove('hidden');
@@ -234,25 +234,52 @@ async function refreshSession(){
   }
 }
 refreshSession();
-supabase.auth.onAuthStateChange(refreshSession);
+supabaseClient.auth.onAuthStateChange(refreshSession);
 
 document.getElementById('loginBtn').onclick = async ()=>{
   authMsg.textContent = '';
   const email = document.getElementById('email').value;
   const password = document.getElementById('password').value;
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
   if(error) authMsg.textContent = error.message;
 };
 document.getElementById('signupBtn').onclick = async ()=>{
+  const button = document.getElementById('signupBtn');
   authMsg.textContent = '';
-  const email = document.getElementById('email').value;
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
-  const { error } = await supabase.auth.signUp({ email, password });
-  if(error) authMsg.textContent = error.message; else authMsg.textContent = 'Conta criada. Verifique o email.';
+
+  if(!email || !password){
+    authMsg.textContent = 'Informe o email e a senha para criar a conta.';
+    return;
+  }
+
+  button.disabled = true;
+  button.textContent = 'Criando conta...';
+
+  try {
+    const { data, error } = await supabaseClient.auth.signUp({ email, password });
+    if(error){
+      authMsg.textContent = error.message;
+      return;
+    }
+
+    authMsg.style.color = 'var(--success)';
+    authMsg.textContent = data.session
+      ? 'Conta criada com sucesso. Você já está conectado.'
+      : 'Conta criada. Verifique seu email e confirme o cadastro para entrar.';
+  } catch (error) {
+    authMsg.style.color = 'var(--danger)';
+    authMsg.textContent = 'Não foi possível criar a conta. Tente novamente.';
+    console.error('Signup error:', error);
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Criar conta';
+  }
 };
 
 async function getToken(){
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await supabaseClient.auth.getSession();
   return session?.access_token;
 }
 
